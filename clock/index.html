@@ -1,0 +1,115 @@
+<html>
+    
+<head>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js"></script>
+  <script type="text/javascript" src="http://cloud.github.com/downloads/processing-js/processing-js/processing-1.3.6.js"></script>
+  <script type="text/javascript" src="https://raw.github.com/jeresig/jquery.hotkeys/master/jquery.hotkeys.js"></script>
+  <style type="text/css">
+    html, body, canvas {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+<canvas id="canvas1"></canvas>
+<script type="text/javascript">
+var processingInstance;
+var pluginData = (function() {
+  var obj = {
+    defaults: {
+      background: { red: 255, green: 0, blue: 0 },
+    },
+    data: {
+    }
+  };
+
+  // Public API
+  obj.background = function(newBackground) {
+    if (!obj.data.background) obj.data.background = obj.defaults.background;
+    if (newBackground) obj.data.background = newBackground;
+    return obj.data.background;
+  };
+  obj.toggleBackground = function() {
+    if (
+      obj.background().red   == obj.defaults.background.red   &&
+      obj.background().green == obj.defaults.background.green &&
+      obj.background().blue  == obj.defaults.background.blue
+    )
+    {
+      obj.background({ red: 0, green: 255, blue: 0 });
+    } else {
+      obj.background(obj.defaults.background);
+    }
+  };
+
+  return obj;
+}());
+
+$(document).ready(function() {
+  $(window).resize(handleResize);
+  setUpProcessing();
+  handleResize();
+  $(document).bind('keydown', 'b', pluginData.toggleBackground);
+});
+
+function handleResize()
+{
+  var width             = $(window).width();
+  var height            = $(window).height();
+  var canvas            = $('#canvas1');
+  var context           = canvas[0].getContext('2d');
+  context.canvas.width  = width;
+  context.canvas.height = height;
+  if (processingInstance) processingInstance.size(width, height);
+}
+
+function setUpProcessing()
+{
+  // attaching the sketchProc function to the canvas
+  var canvas         = $('#canvas1')[0];
+  processingInstance = new Processing(canvas, draw);
+}
+
+function draw(processing) {
+  processing.draw = function() {
+    // determine center and max clock arm length
+    var centerX = processing.width / 2, centerY = processing.height / 2;
+    var maxArmLength = Math.min(centerX, centerY);
+
+    function drawArm(position, lengthScale, weight) {
+      processing.strokeWeight(weight);
+      processing.line(centerX, centerY,
+        centerX + Math.sin(position * 2 * Math.PI) * lengthScale * maxArmLength,
+        centerY - Math.cos(position * 2 * Math.PI) * lengthScale * maxArmLength);
+    }
+
+    // erase background
+    var bg = pluginData.background();
+    console.log("background: " + bg.red + ":" + bg.green + ":" + bg.blue);
+    processing.background(
+      pluginData.background().red,
+      pluginData.background().green,
+      pluginData.background().blue
+    );
+
+    var now = new Date();
+
+    // Moving hours arm by small increments
+    var hoursPosition = (now.getHours() % 12 + now.getMinutes() / 60) / 12;
+    drawArm(hoursPosition, 0.5, 5);
+
+    // Moving minutes arm by small increments
+    var minutesPosition = (now.getMinutes() + now.getSeconds() / 60) / 60;
+    drawArm(minutesPosition, 0.80, 3);
+
+    // Moving hour arm by second increments
+    var secondsPosition = now.getSeconds() / 60;
+    drawArm(secondsPosition, 0.90, 1);
+  };
+}
+</script>
+</body>
+
+</html>
