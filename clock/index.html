@@ -23,6 +23,7 @@ var pluginData = (function() {
   var obj = {
     defaults: {
       background: { red: 255, green: 0, blue: 0 },
+      size:       50,
     },
     data: {
     }
@@ -33,6 +34,15 @@ var pluginData = (function() {
     if (!obj.data.background) obj.data.background = obj.defaults.background;
     if (newBackground) obj.data.background = newBackground;
     return obj.data.background;
+  };
+  obj.size = function(newSize) {
+    if (!obj.data.size) obj.data.size = obj.defaults.size;
+    if (newSize) {
+        // Dampen size by only allowing you to change it 1px at a time
+        obj.data.size = Math.max(obj.data.size - 10, newSize);
+        console.log(obj.data.size);
+    }
+    return obj.data.size;
   };
   obj.toggleBackground = function() {
     if (
@@ -83,11 +93,9 @@ function draw(processing) {
     var centerX = processing.width / 2, centerY = processing.height / 2;
     var maxArmLength = Math.min(centerX, centerY);
 
-    function drawArm(position, lengthScale, weight) {
+    function drawCircle(diameter, weight) {
       processing.strokeWeight(weight);
-      processing.line(centerX, centerY,
-        centerX + Math.sin(position * 2 * Math.PI) * lengthScale * maxArmLength,
-        centerY - Math.cos(position * 2 * Math.PI) * lengthScale * maxArmLength);
+      processing.ellipse(centerX, centerY, diameter, diameter);
     }
 
     // Set wami recording if he isn't already
@@ -98,25 +106,12 @@ function draw(processing) {
     }
 
     // erase background
+    processing.background(0);
+
+    // Draw a circle
     var micLevel = (Wami && Wami.getRecordingLevel) ? Wami.getRecordingLevel() : 0;
-    var color    = 5 * micLevel;
-    color        = Math.max(0, Math.min(255, color)); // Normalize
-    var bg       = pluginData.background();
-    processing.background(color);
-
-    var now = new Date();
-
-    // Moving hours arm by small increments
-    var hoursPosition = (now.getHours() % 12 + now.getMinutes() / 60) / 12;
-    drawArm(hoursPosition, 0.5, 5);
-
-    // Moving minutes arm by small increments
-    var minutesPosition = (now.getMinutes() + now.getSeconds() / 60) / 60;
-    drawArm(minutesPosition, 0.80, 3);
-
-    // Moving hour arm by second increments
-    var secondsPosition = now.getSeconds() / 60;
-    drawArm(secondsPosition, 0.90, 1);
+    var diameter = pluginData.size(Math.max(50, Math.min(300, 20 * micLevel)));
+    drawCircle(diameter, 5);
   };
 }
 </script>
