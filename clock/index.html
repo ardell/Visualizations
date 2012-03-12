@@ -19,13 +19,19 @@
 <canvas id="canvas1"></canvas>
 <script type="text/javascript">
 var processingInstance;
+var canvasWidth  = 0;
+var canvasHeight = 0;
 var pluginData = (function() {
   var obj = {
+    config: {
+      sampleSize: 410
+    },
     defaults: {
       background: { red: 255, green: 0, blue: 0 },
-      size:       50,
+      size:       0
     },
     data: {
+      samples: []
     }
   };
 
@@ -38,11 +44,18 @@ var pluginData = (function() {
   obj.size = function(newSize) {
     if (!obj.data.size) obj.data.size = obj.defaults.size;
     if (newSize) {
-        // Dampen size by only allowing you to change it 1px at a time
-        obj.data.size = Math.max(obj.data.size - 10, newSize);
-        console.log(obj.data.size);
+        // Dampen size by only allowing you to change it N% at a time
+        // obj.data.size = Math.max(obj.data.size - 1, newSize);
+        obj.data.size = newSize;
     }
     return obj.data.size;
+  };
+  obj.pushSample = function(sample) {
+    obj.data.samples.unshift(sample);
+    if (obj.data.samples.length > obj.config.sampleSize) obj.data.samples.pop();
+  };
+  obj.samples = function() {
+    return obj.data.samples;
   };
   obj.toggleBackground = function() {
     if (
@@ -70,13 +83,13 @@ $(document).ready(function() {
 
 function handleResize()
 {
-  var width             = $(window).width();
-  var height            = $(window).height();
+  canvasWidth           = $(window).width();
+  canvasHeight          = $(window).height();
   var canvas            = $('#canvas1');
   var context           = canvas[0].getContext('2d');
-  context.canvas.width  = width;
-  context.canvas.height = height;
-  if (processingInstance) processingInstance.size(width, height);
+  context.canvas.width  = canvasWidth;
+  context.canvas.height = canvasHeight;
+  if (processingInstance) processingInstance.size(canvasWidth, canvasHeight);
 }
 
 function setUpProcessing()
@@ -84,6 +97,7 @@ function setUpProcessing()
   // attaching the sketchProc function to the canvas
   var canvas         = $('#canvas1')[0];
   processingInstance = new Processing(canvas, draw);
+  processingInstance.frameRate(30);
 }
 
 function draw(processing) {
@@ -92,11 +106,6 @@ function draw(processing) {
     // determine center and max clock arm length
     var centerX = processing.width / 2, centerY = processing.height / 2;
     var maxArmLength = Math.min(centerX, centerY);
-
-    function drawCircle(diameter, weight) {
-      processing.strokeWeight(weight);
-      processing.ellipse(centerX, centerY, diameter, diameter);
-    }
 
     // Set wami recording if he isn't already
     if (!isRecording && Wami && Wami.startRecording)
@@ -108,10 +117,35 @@ function draw(processing) {
     // erase background
     processing.background(0);
 
-    // Draw a circle
+    // Record sample
     var micLevel = (Wami && Wami.getRecordingLevel) ? Wami.getRecordingLevel() : 0;
-    var diameter = pluginData.size(Math.max(50, Math.min(300, 20 * micLevel)));
-    drawCircle(diameter, 5);
+    var sample   = pluginData.size(Math.max(0, Math.min(100, micLevel))) / 100;
+    pluginData.pushSample(sample);
+
+    // Draw
+    var bandWidth          = 2;
+    var marginBetweenBands = 0;
+    processing.fill(150, 150, 150);
+    //processing.stroke(150, 150, 150);
+    processing.strokeWeight(1);
+    $(pluginData.samples()).each(function(i, sample) {
+      var scale = sample * canvasHeight;
+      processing.rect(
+        (canvasWidth-bandWidth)/2 + i*(bandWidth + marginBetweenBands),
+        canvasHeight-scale,
+        bandWidth,
+        scale
+      );
+      if (i > 0)
+      {
+        processing.rect(
+          (canvasWidth-bandWidth)/2 - i*(bandWidth + marginBetweenBands),
+          canvasHeight-scale,
+          bandWidth,
+          scale
+        );
+      }
+    });
   };
 }
 </script>
